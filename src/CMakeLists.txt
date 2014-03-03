@@ -1,7 +1,9 @@
 rock_library(video_capture_vlc
-    SOURCES Dummy.cpp
-    HEADERS Dummy.hpp)
+    SOURCES VlcCapture.cpp
+    HEADERS VlcCapture.h
+    DEPS_PKGCONFIG opencv
+    LIBS vlc)
 
-rock_executable(video_capture_vlc_bin Main.cpp
+Rock_executable(video_capture_vlc_stream stream.cpp
     DEPS video_capture_vlc)
 
