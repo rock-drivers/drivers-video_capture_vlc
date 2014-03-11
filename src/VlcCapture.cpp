@@ -6,9 +6,9 @@
  */
 
 #include "VlcCapture.h"
+#include <unistd.h>
 
-
-VlcCapture::VlcCapture(std::string url) {
+VlcCapture::VlcCapture(std::string url, int input_buffer_ms):buffer_ms(input_buffer_ms) {
 
 	pthread_mutex_init(&imagemutex,NULL);// = PTHREAD_MUTEX_INITIALIZER;
 
@@ -29,6 +29,11 @@ VlcCapture::VlcCapture(std::string url) {
 
 	//set vlc transcode options: transcode whatever is open to rgb24 in memory (video only)
 	sprintf(smem_options,"#transcode{vcodec=RV24,acodec=none}:smem");
+
+	sprintf(str_netbuf,"--network-caching=%i",buffer_ms);
+
+	//printf("%s\n",str_netbuf);
+
 	//local output
 	//sprintf(smem_options,"#transcode{vcodec=RV24,acodec=none}:duplicate{dst=smem,dst=display}");
 
@@ -42,7 +47,7 @@ void VlcCapture::open(std::string &url) {
 		"-I","dummy",
 //		"-vvv",
 		"--ignore-config",
-		"--network-caching=10",
+		str_netbuf,
 		"--sout-smem-time-sync",
 		str_smem_vid_prerender,
 		str_smem_vid_postrender,
@@ -56,6 +61,7 @@ void VlcCapture::open(std::string &url) {
 	vlcm = libvlc_media_new_location(vlc, url.c_str());
 	vlcmp = libvlc_media_player_new_from_media (vlcm);
 	libvlc_media_release (vlcm);
+	start();
 }
 
 VlcCapture::~VlcCapture() {
@@ -78,7 +84,9 @@ bool VlcCapture::read(cv::Mat& image) {
 		imageAvailable = false;
 		pthread_mutex_unlock(&imagemutex);
 		return true;
-	}
+	}/*else{
+		usleep(10000);
+	}*/
 
 	pthread_mutex_unlock(&imagemutex);
 	return false;

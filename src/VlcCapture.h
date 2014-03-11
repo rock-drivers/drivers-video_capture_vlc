@@ -38,7 +38,7 @@ void pf_audio_postrender_callback ( void* p_audio_data, uint8_t* p_pcm_buffer, u
 
 class VlcCapture {
 public:
-	VlcCapture(std::string url = "");
+	VlcCapture(std::string url = "", int input_buffer_ms = 10);
 	virtual ~VlcCapture();
 
 
@@ -67,13 +67,15 @@ public:
 
 private:
 
+	int buffer_ms;
+
     //options
     char smem_options[256];
 
     //callback pointer addess string
     char str_smem_vid_prerender[100], str_smem_vid_postrender[100];
     char str_smem_aud_prerender[100], str_smem_aud_postrender[100];
-    char str_smem_data[100];
+    char str_smem_data[100],str_netbuf[100];
 
     libvlc_instance_t *vlc;
     libvlc_media_player_t *vlcmp;
