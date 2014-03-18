@@ -8,9 +8,15 @@
 #include "VlcCapture.h"
 #include <unistd.h>
 
+pthread_mutex_t VlcCapture::callbackmutex;
+
 VlcCapture::VlcCapture(std::string url, int input_buffer_ms):buffer_ms(input_buffer_ms) {
 
 	pthread_mutex_init(&imagemutex,NULL);// = PTHREAD_MUTEX_INITIALIZER;
+
+	pthread_mutex_init(&callbackmutex,NULL);// = PTHREAD_MUTEX_INITIALIZER;
+
+
 
 	buffersize = 640*480;
 	buffer = (uint8_t*)malloc(buffersize);
@@ -29,10 +35,11 @@ VlcCapture::VlcCapture(std::string url, int input_buffer_ms):buffer_ms(input_buf
 
 	//set vlc transcode options: transcode whatever is open to rgb24 in memory (video only)
 	sprintf(smem_options,"#transcode{vcodec=RV24,acodec=none}:smem");
+	sprintf(smem_options,"#transcode{vcodec=RV24,acodec=none}:duplicate{dst=display,dst=smem}");
 
 	sprintf(str_netbuf,"--network-caching=%i",buffer_ms);
 
-	//printf("%s\n",str_netbuf);
+	printf("%s\n",str_smem_vid_prerender);
 
 	//local output
 	//sprintf(smem_options,"#transcode{vcodec=RV24,acodec=none}:duplicate{dst=smem,dst=display}");
@@ -43,12 +50,13 @@ VlcCapture::VlcCapture(std::string url, int input_buffer_ms):buffer_ms(input_buf
 }
 
 void VlcCapture::open(std::string &url) {
+	_url = url;
 	const char * const vlc_args[] = {
 		"-I","dummy",
 //		"-vvv",
 		"--ignore-config",
 		str_netbuf,
-		"--sout-smem-time-sync",
+//		"--sout-smem-time-sync",
 		str_smem_vid_prerender,
 		str_smem_vid_postrender,
 		str_smem_aud_prerender,
@@ -60,12 +68,13 @@ void VlcCapture::open(std::string &url) {
 	vlc = libvlc_new (sizeof (vlc_args) / sizeof (vlc_args[0]), vlc_args);
 	vlcm = libvlc_media_new_location(vlc, url.c_str());
 	vlcmp = libvlc_media_player_new_from_media (vlcm);
-	libvlc_media_release (vlcm);
 	start();
 }
 
 VlcCapture::~VlcCapture() {
+	stop();
 	libvlc_media_player_release (vlcmp);
+	libvlc_media_release (vlcm);
 	libvlc_release (vlc);
 	free(buffer);
 }
@@ -80,20 +89,24 @@ bool VlcCapture::read(cv::Mat& image) {
 	}
 
 	if (imageAvailable){
+		//printf("image available\n");
 		memcpy(image.data,buffer,buffersize);
 		imageAvailable = false;
 		pthread_mutex_unlock(&imagemutex);
 		return true;
-	}/*else{
-		usleep(10000);
-	}*/
+	}
+//	else{
+//		printf("no image available\n");
+//	}
 
 	pthread_mutex_unlock(&imagemutex);
 	return false;
 }
 
-void VlcCapture::start() {
-	libvlc_media_player_play (vlcmp);
+int VlcCapture::start() {
+	int val = libvlc_media_player_play (vlcmp);
+	printf("start %i\n",val);
+	return  val;
 }
 
 void VlcCapture::stop() {
@@ -103,17 +116,23 @@ void VlcCapture::stop() {
 void pf_video_prerender_callback(void* p_video_data,
 		uint8_t** pp_pixel_buffer, size_t size) {
 
+	//pthread_mutex_lock(&VlcCapture::callbackmutex);
+
 	VlcCapture* parent = (VlcCapture*)p_video_data;
+	parent->prerender_callback(p_video_data,pp_pixel_buffer,size);
 
-	pthread_mutex_lock(&parent->imagemutex);
+}
 
-	if (size > parent->buffersize){
-		parent->buffer = (uint8_t*)realloc(parent->buffer,size);
-		parent->buffersize = size;
+void VlcCapture::prerender_callback(void* p_video_data, uint8_t** pp_pixel_buffer, size_t size){
+	pthread_mutex_lock(&imagemutex);
+
+	printf("prerender_callback %s %p\n",_url.c_str(),this);
+
+	if (size > buffersize){
+		buffer = (uint8_t*)realloc(buffer,size);
+		buffersize = size;
 	}
-
-	*pp_pixel_buffer = parent->buffer;
-
+	*pp_pixel_buffer = buffer;
 }
 
 void pf_video_postrender_callback(void* p_video_data,
@@ -121,11 +140,20 @@ void pf_video_postrender_callback(void* p_video_data,
 		size_t size, libvlc_time_t pts) {
 
 	VlcCapture* parent = (VlcCapture*)p_video_data;
+	parent->postrender_callback(p_video_data,p_pixel_buffer,width,height,pixel_pitch,size,pts);
+	//pthread_mutex_unlock(&VlcCapture::callbackmutex);
+}
 
-	parent->width = width;
-	parent->height = height;
-	parent->imageAvailable = true;
-	pthread_mutex_unlock(&parent->imagemutex);
+void VlcCapture::postrender_callback(void* p_video_data,
+		uint8_t* p_pixel_buffer, int width, int height, int pixel_pitch,
+		size_t size, libvlc_time_t pts) {
+
+	printf("pstrender_callback %s %p\n",_url.c_str(),this);
+
+	this->width = width;
+	this->height = height;
+	this->imageAvailable = true;
+	pthread_mutex_unlock(&imagemutex);
 }
 
 void pf_audio_prerender_callback(void* p_audio_data,

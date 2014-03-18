@@ -50,12 +50,14 @@ public:
 
 	bool read(cv::Mat &image);
 
-	void start();
+	int start();
 
 	void stop();
 
 
 	pthread_mutex_t imagemutex;
+
+	static pthread_mutex_t callbackmutex;
 
 	int width,height;
 
@@ -65,7 +67,16 @@ public:
 
 	bool imageAvailable;
 
+	std::string _url;
+
+
+	void prerender_callback(void* p_video_data, uint8_t** pp_pixel_buffer, size_t size);
+	void postrender_callback(void* p_video_data, uint8_t* p_pixel_buffer, int width, int height, int pixel_pitch, size_t size, libvlc_time_t pts );
+
+
 private:
+
+
 
 	int buffer_ms;
 
