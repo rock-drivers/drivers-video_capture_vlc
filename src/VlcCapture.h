@@ -35,6 +35,13 @@ void pf_audio_prerender_callback ( void* p_audio_data, uint8_t** pp_pcm_buffer, 
 void pf_audio_postrender_callback ( void* p_audio_data, uint8_t* p_pcm_buffer, unsigned int channels, unsigned int rate, unsigned int nb_samples, unsigned int bits_per_sample, size_t size, libvlc_time_t pts );
 
 
+class VlcCaptureConsumer{
+    public:
+    /*
+     * get called when a new image is arrived
+     */
+    virtual void imageCallback()=0;
+};
 
 class VlcCapture {
 public:
@@ -73,7 +80,7 @@ public:
 	void prerender_callback(void* p_video_data, uint8_t** pp_pixel_buffer, size_t size);
 	void postrender_callback(void* p_video_data, uint8_t* p_pixel_buffer, int width, int height, int pixel_pitch, size_t size, libvlc_time_t pts );
 
-
+        std::vector<VlcCaptureConsumer*> callbacks;
 private:
 
 

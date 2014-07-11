@@ -124,6 +124,9 @@ void pf_video_postrender_callback(void* p_video_data,
 	parent->width = width;
 	parent->height = height;
 	parent->imageAvailable = true;
+        for(int i=0;i<parent->callbacks.size();i++){
+            parent->callbacks[i]->imageCallback();
+        }
 	pthread_mutex_unlock(&parent->imagemutex);
 }
 
