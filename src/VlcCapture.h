@@ -33,7 +33,7 @@ class VlcCaptureConsumer{
 
 class VlcCapture {
 public:
-	VlcCapture(std::string url = "");
+	VlcCapture(std::string url = "", int input_buffer_ms = 1000);
 	virtual ~VlcCapture();
 
 	void open(std::string &url);
@@ -48,6 +48,7 @@ public:
 	bool imageAvailable;
 	std::vector<VlcCaptureConsumer*> callbacks;
 private:
+	int buffer_ms;
     libvlc_instance_t *vlc;
 	libvlc_media_t *vlcm;
     libvlc_media_player_t *vlcmp;

@@ -8,7 +8,7 @@
 #include "VlcCapture.h"
 #include <unistd.h>
 
-VlcCapture::VlcCapture(std::string url){
+VlcCapture::VlcCapture(std::string url, int input_buffer_ms):buffer_ms(input_buffer_ms) {
 
 	pthread_mutex_init(&imagemutex,NULL);// = PTHREAD_MUTEX_INITIALIZER;
 
@@ -24,9 +24,12 @@ VlcCapture::VlcCapture(std::string url){
 }
 
 void VlcCapture::open(std::string &url) {
+	std::stringstream networkCachingSS;
+	networkCachingSS << ":network-caching=" << buffer_ms;
 	vlc = libvlc_new(0, 0);
 	vlcm = libvlc_media_new_location(vlc, url.c_str());
 	vlcmp = libvlc_media_player_new_from_media (vlcm);
+	libvlc_media_add_option(vlcm, networkCachingSS.str().c_str());
 	libvlc_video_set_callbacks(vlcmp, lock_frame, unlock_frame, 0, this);
 	libvlc_video_set_format_callbacks(vlcmp, format_callback, 0);
 	libvlc_media_release (vlcm);
