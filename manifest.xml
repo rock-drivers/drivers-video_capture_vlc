@@ -17,4 +17,6 @@
   -->
   <depend package="libvlc" />
   <depend package="opencv" />
+  <depend package="harfbuzz" />
+  <depend package="freetype" />
 </package>
